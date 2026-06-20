@@ -65,7 +65,7 @@ export const useFamilyTree = (initialPersonId?: string): UseFamilyTreeResult => 
 				}
 			} catch {
 				if (active) {
-					setError('Kunde inte hamta slakttrad just nu.');
+					setError('Kunde inte hämta släktträd just nu.');
 				}
 			} finally {
 				if (active) {

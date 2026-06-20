@@ -19,10 +19,10 @@ export const SearchBar = ({ onSearch, placeholder }: SearchBarProps) => {
 				type="search"
 				value={query}
 				onChange={(event) => setQuery(event.target.value)}
-				placeholder={placeholder ?? 'Sok i Riksarkivet...'}
-				aria-label="Sok i arkiv"
+				placeholder={placeholder ?? 'Sök i Riksarkivet...'}
+				aria-label="Sök i arkiv"
 			/>
-			<button type="submit">Sok</button>
+			<button type="submit">Sök</button>
 		</form>
 	);
 };
