@@ -8,9 +8,10 @@ import { SearchBar } from './SearchBar';
 interface PersonCardProps {
 	person: Person;
 	onClose: () => void;
+	allPeople?: Person[];
 }
 
-export const PersonCard = ({ person, onClose }: PersonCardProps) => {
+export const PersonCard = ({ person, onClose, allPeople = [] }: PersonCardProps) => {
 	const {
 		matches,
 		loadMatches,
@@ -25,6 +26,17 @@ export const PersonCard = ({ person, onClose }: PersonCardProps) => {
 		void loadStory();
 	}, [loadMatches, loadStory]);
 
+	const parentMap = new Map(allPeople.map((p) => [p.id, p]));
+	const parents = person.parents
+		.map((parentId) => parentMap.get(parentId))
+		.filter((p): p is Person => Boolean(p));
+	const children = person.children
+		.map((childId) => parentMap.get(childId))
+		.filter((p): p is Person => Boolean(p));
+	const spouses = person.spouses
+		.map((spouseId) => parentMap.get(spouseId))
+		.filter((p): p is Person => Boolean(p));
+
 	return (
 		<aside className="person-card" aria-label="Persondetaljer">
 			<button onClick={onClose} className="close-btn" aria-label="Stäng">
@@ -34,9 +46,51 @@ export const PersonCard = ({ person, onClose }: PersonCardProps) => {
 			<h2>{person.fullName}</h2>
 
 			<div className="vital-info">
-				<p>{person.birth ? `Född: ${person.birth.date} i ${person.birth.place}` : 'Födelsedata saknas'}</p>
-				<p>{person.death ? `Död: ${person.death.date} i ${person.death.place}` : 'Dödsdata saknas'}</p>
+				<p>
+					{person.birth ? (
+						<>
+							Född: {person.birth.date}
+							{person.birth.place && ` i ${person.birth.place}`}
+						</>
+					) : (
+						'Födelsedata saknas'
+					)}
+				</p>
+				<p>{person.death ? `Död: ${person.death.date} i ${person.death.place}` : '✓ Levande'}</p>
 			</div>
+
+			{parents.length > 0 && (
+				<div className="relatives-section">
+					<h4>Föräldrar</h4>
+					<ul className="relatives-list">
+						{parents.map((parent) => (
+							<li key={parent.id}>{parent.fullName}</li>
+						))}
+					</ul>
+				</div>
+			)}
+
+			{spouses.length > 0 && (
+				<div className="relatives-section">
+					<h4>Partner</h4>
+					<ul className="relatives-list">
+						{spouses.map((spouse) => (
+							<li key={spouse.id}>{spouse.fullName}</li>
+						))}
+					</ul>
+				</div>
+			)}
+
+			{children.length > 0 && (
+				<div className="relatives-section">
+					<h4>Barn</h4>
+					<ul className="relatives-list">
+						{children.map((child) => (
+							<li key={child.id}>{child.fullName}</li>
+						))}
+					</ul>
+				</div>
+			)}
 
 			<section className="story-section">
 				<h3>AI-berättelse</h3>

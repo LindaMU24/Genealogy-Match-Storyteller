@@ -3,6 +3,8 @@ import { Person } from '../types/person';
 import { Story } from '../types/story';
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/+$/, '');
+const USE_REMOTE_API = Boolean(API_BASE_URL);
 
 const MOCK_PEOPLE: Person[] = [
 	{
@@ -199,46 +201,113 @@ const MOCK_STORIES: Story[] = [
 const byPerson = <T extends { personId: string }>(items: T[], personId: string) =>
 	items.filter((item) => item.personId === personId);
 
+const filterTreeByInitialPerson = (people: Person[], initialPersonId?: string): Person[] => {
+	if (!initialPersonId) {
+		return people;
+	}
+
+	const selected = people.find((person) => person.id === initialPersonId);
+	if (!selected) {
+		return people;
+	}
+
+	const relatedIds = new Set([
+		selected.id,
+		...selected.parents,
+		...selected.children,
+		...selected.spouses,
+	]);
+
+	return people.filter((person) => relatedIds.has(person.id));
+};
+
+const apiGet = async <T>(path: string): Promise<T> => {
+	if (!USE_REMOTE_API || !API_BASE_URL) {
+		throw new Error('Remote API is not configured.');
+	}
+
+	const response = await fetch(`${API_BASE_URL}${path}`, {
+		headers: {
+			Accept: 'application/json',
+		},
+	});
+
+	if (!response.ok) {
+		throw new Error(`Request failed with status ${response.status}`);
+	}
+
+	return (await response.json()) as T;
+};
+
+interface MatchResponse {
+	personId: string;
+	matches: ArchiveMatch[];
+	totalMatches: number;
+}
+
 export const api = {
 	async getTree(initialPersonId?: string): Promise<Person[]> {
+		if (USE_REMOTE_API) {
+			try {
+				const people = await apiGet<Person[]>('/tree');
+				return filterTreeByInitialPerson(people, initialPersonId);
+			} catch {
+				// Fallback to local mock data when backend is unavailable.
+			}
+		}
+
 		await wait(250);
-		if (!initialPersonId) {
-			return MOCK_PEOPLE;
-		}
-
-		const selected = MOCK_PEOPLE.find((person) => person.id === initialPersonId);
-		if (!selected) {
-			return MOCK_PEOPLE;
-		}
-
-		const relatedIds = new Set([
-			selected.id,
-			...selected.parents,
-			...selected.children,
-			...selected.spouses,
-		]);
-
-		return MOCK_PEOPLE.filter((person) => relatedIds.has(person.id));
+		return filterTreeByInitialPerson(MOCK_PEOPLE, initialPersonId);
 	},
 
 	async getPersonMatches(personId: string): Promise<ArchiveMatch[]> {
+		if (USE_REMOTE_API) {
+			try {
+				const result = await apiGet<MatchResponse>(`/match/person/${personId}`);
+				return result.matches;
+			} catch {
+				// Fallback to local mock data when backend is unavailable.
+			}
+		}
+
 		await wait(300);
 		return byPerson(MOCK_MATCHES, personId);
 	},
 
 	async getPersonStory(personId: string): Promise<Story | null> {
+		if (USE_REMOTE_API) {
+			try {
+				return await apiGet<Story>(`/story/person/${personId}`);
+			} catch {
+				// Fallback to local mock data when backend is unavailable.
+			}
+		}
+
 		await wait(350);
 		return MOCK_STORIES.find((story) => story.personId === personId) ?? null;
 	},
 
-	async searchArchive(term: string): Promise<ArchiveMatch[]> {
+	async searchArchive(term: string, personId?: string): Promise<ArchiveMatch[]> {
 		await wait(280);
 		const normalizedTerm = term.trim().toLowerCase();
 		if (!normalizedTerm) {
 			return [];
 		}
 
-		return MOCK_MATCHES.filter((match) => {
+		if (USE_REMOTE_API && personId) {
+			try {
+				const result = await apiGet<MatchResponse>(`/match/person/${personId}`);
+				return result.matches.filter((match) => {
+					const haystack = `${match.title} ${match.place} ${match.excerpt}`.toLowerCase();
+					return haystack.includes(normalizedTerm);
+				});
+			} catch {
+				// Fallback to local mock data when backend is unavailable.
+			}
+		}
+
+		const scopedMatches = personId ? byPerson(MOCK_MATCHES, personId) : MOCK_MATCHES;
+		return scopedMatches.filter((match) => {
 			const haystack = `${match.title} ${match.place} ${match.excerpt}`.toLowerCase();
 			return haystack.includes(normalizedTerm);
 		});

@@ -1,64 +1,96 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import Tree from 'react-d3-tree';
+import { useMemo, useState } from 'react';
 import { useFamilyTree } from '../hooks/useFamilyTree';
+import { layoutFamilyGraph, normalizeFamilyGraph } from '../layout/layoutFamilyGraph';
 import { Person } from '../types/person';
 import { PersonCard } from './PersonCard';
+import { SearchPeople } from './SearchPeople';
+
+const CARD_WIDTH = 148;
+const CARD_HEIGHT = 78;
 
 interface TreeViewProps {
 	initialPersonId?: string;
 }
 
 export const TreeView = ({ initialPersonId }: TreeViewProps) => {
-	const { treeData, people, isLoading, error } = useFamilyTree(initialPersonId);
+	const { people, rootPersonId, isLoading, error } = useFamilyTree(initialPersonId);
 	const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
-	const treePanelRef = useRef<HTMLDivElement | null>(null);
-	const [panelSize, setPanelSize] = useState({ width: 820, height: 560 });
 
-	useEffect(() => {
-		const element = treePanelRef.current;
-		if (!element) {
-			return;
+	const normalizedGraph = useMemo(() => normalizeFamilyGraph(people), [people]);
+
+	const layout = useMemo(() => {
+		if (!rootPersonId) {
+			return null;
 		}
 
-		const updateSize = () => {
-			const rect = element.getBoundingClientRect();
-			setPanelSize({
-				width: Math.max(Math.floor(rect.width), 360),
-				height: Math.max(Math.floor(rect.height), 420),
-			});
-		};
+		return layoutFamilyGraph(normalizedGraph.persons, normalizedGraph.families, rootPersonId, people);
+	}, [normalizedGraph, rootPersonId, people]);
 
-		updateSize();
-		const observer = new ResizeObserver(updateSize);
-		observer.observe(element);
+	const peopleById = useMemo(() => new Map(people.map((person) => [person.id, person])), [people]);
 
-		return () => observer.disconnect();
-	}, []);
+	const formatYears = (person: Person): string => {
+		const birthMatch = person.birth?.date?.match(/(\d{4})/);
+		const deathMatch = person.death?.date?.match(/(\d{4})/);
+		const birthYear = birthMatch?.[1];
+		const deathYear = deathMatch?.[1] ?? (person.death ? undefined : 'Nu');
 
-	const dimensions = useMemo(
-		() => ({
-			width: Math.max(panelSize.width - 20, 340),
-			height: Math.max(panelSize.height - 20, 400),
-		}),
-		[panelSize],
-	);
+		if (birthYear && deathYear) {
+			return `${birthYear}-${deathYear}`;
+		}
 
-	const resolvePersonFromNode = (nodeDatum: unknown): Person | null => {
-		const typedNode = nodeDatum as {
-			person?: Person;
-			data?: { person?: Person; attributes?: { id?: string } };
-			attributes?: { id?: string };
-		};
+		if (birthYear) {
+			return `${birthYear}-`;
+		}
 
-		const id = typedNode.attributes?.id ?? typedNode.data?.attributes?.id;
-		return typedNode.person ?? typedNode.data?.person ?? people.find((person) => person.id === id) ?? null;
+		if (deathMatch?.[1]) {
+			return `d. ${deathMatch[1]}`;
+		}
+
+		return '';
 	};
 
-	const selectNode = (nodeDatum: unknown) => {
-		const person = resolvePersonFromNode(nodeDatum);
-		if (person) {
-			setSelectedPerson(person);
+	const displayName = (person: Person): string => {
+		const fromParts = `${person.firstName ?? ''} ${person.lastName ?? ''}`.trim();
+		return fromParts || person.fullName || person.id;
+	};
+
+	const initialsForPerson = (person: Person): string => {
+		const name = displayName(person);
+		const parts = name.split(/\s+/).filter(Boolean);
+		const first = parts[0]?.[0] ?? '';
+		const second = parts[1]?.[0] ?? '';
+		return `${first}${second}`.toUpperCase();
+	};
+
+	const splitNameTwoLines = (person: Person): [string, string] => {
+		const full = displayName(person);
+		if (full.length <= 22) {
+			return [full, ''];
 		}
+
+		const words = full.split(/\s+/).filter(Boolean);
+		if (words.length < 2) {
+			return [full.slice(0, 22), full.slice(22, 44)];
+		}
+
+		let firstLine = '';
+		let index = 0;
+		while (index < words.length) {
+			const candidate = firstLine ? `${firstLine} ${words[index]}` : words[index];
+			if (candidate.length > 22) {
+				break;
+			}
+			firstLine = candidate;
+			index += 1;
+		}
+
+		if (!firstLine) {
+			firstLine = words[0];
+			index = 1;
+		}
+
+		const secondLine = words.slice(index).join(' ');
+		return [firstLine, secondLine.slice(0, 24)];
 	};
 
 	if (isLoading) {
@@ -71,48 +103,80 @@ export const TreeView = ({ initialPersonId }: TreeViewProps) => {
 
 	return (
 		<div className="tree-layout">
-			<div className="tree-panel" ref={treePanelRef}>
-				<p className="tree-hint">Klicka på en nod för att öppna personkortet.</p>
-				{treeData.length ? (
-					<Tree
-						data={treeData}
-						translate={{ x: dimensions.width / 2, y: 88 }}
-						dimensions={dimensions}
-						orientation="vertical"
-						pathFunc="step"
-						collapsible={false}
-						zoom={0.8}
-						nodeSize={{ x: 220, y: 140 }}
-						separation={{ siblings: 1.2, nonSiblings: 1.4 }}
-						onNodeClick={selectNode}
-						renderCustomNodeElement={({ nodeDatum }) => {
-							const person = resolvePersonFromNode(nodeDatum);
-							const isSelected = person?.id === selectedPerson?.id;
-							const nodeName = String((nodeDatum as { name?: string }).name ?? '');
+			<div className="tree-panel">
+				{!isLoading && !error && people.length > 0 && (
+					<SearchPeople people={people} onPersonSelected={setSelectedPerson} />
+				)}
+				<p className="tree-hint">Klicka på en nod eller sök för att öppna personkortet.</p>
+				{layout && layout.people.length ? (
+					<div className="family-graph-scroll">
+						<svg
+							className="family-graph-svg"
+							width={layout.width}
+							height={layout.height}
+							viewBox={`0 0 ${layout.width} ${layout.height}`}
+						>
+							{layout.lines.map((line) => (
+								<line
+									key={line.id}
+									x1={line.x1}
+									y1={line.y1}
+									x2={line.x2}
+									y2={line.y2}
+									className={`family-line family-line-${line.type}`}
+								/>
+							))}
 
-							return (
-								<g
-									className="tree-node-clickable"
-									onClick={(event) => {
-										event.stopPropagation();
-										selectNode(nodeDatum);
-									}}
-								>
-									<circle r={30} className="tree-node-hit-area" />
-									<circle r={18} className={isSelected ? 'tree-node-core selected' : 'tree-node-core'} />
-									<text dy={42} textAnchor="middle" className="tree-node-label">
-										{nodeName}
-									</text>
-								</g>
-							);
-						}}
-					/>
+							{layout.people.map((node) => {
+								const person = peopleById.get(node.id);
+								if (!person) {
+									return null;
+								}
+
+								const genderClass =
+									person.gender === 'M'
+										? 'person-card-male'
+										: person.gender === 'F'
+											? 'person-card-female'
+											: 'person-card-other';
+								const selectedClass = selectedPerson?.id === person.id ? 'person-card-selected' : '';
+								const initials = initialsForPerson(person);
+								const [nameLine1, nameLine2] = splitNameTwoLines(person);
+
+								return (
+									<g
+										key={person.id}
+										className="person-card-node"
+										transform={`translate(${node.x}, ${node.y})`}
+										onClick={() => setSelectedPerson(person)}
+									>
+										<rect className={`person-card-rect ${genderClass} ${selectedClass}`} width={CARD_WIDTH} height={CARD_HEIGHT} rx={12} />
+										<circle className="person-avatar-bg" cx={16} cy={15} r={9} />
+										<text x={16} y={19} textAnchor="middle" className="person-avatar-text">
+											{initials || '?'}
+										</text>
+										<text x={10} y={36} className="person-name-label">
+											{nameLine1}
+										</text>
+										{nameLine2 && (
+											<text x={10} y={50} className="person-name-label">
+												{nameLine2}
+											</text>
+										)}
+										<text x={10} y={68} className="person-years-label">
+											{formatYears(person)}
+										</text>
+									</g>
+								);
+							})}
+						</svg>
+					</div>
 				) : (
 					<div className="loading-box">Ingen träd-data tillgänglig.</div>
 				)}
 			</div>
 
-			{selectedPerson && <PersonCard person={selectedPerson} onClose={() => setSelectedPerson(null)} />}
+			{selectedPerson && <PersonCard person={selectedPerson} onClose={() => setSelectedPerson(null)} allPeople={people} />}
 		</div>
 	);
 };

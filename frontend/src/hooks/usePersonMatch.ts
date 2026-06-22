@@ -37,14 +37,14 @@ export const usePersonMatch = (personId: string): UsePersonMatchResult => {
 		setIsLoading(true);
 		setError(null);
 		try {
-			const data = await api.searchArchive(term);
+			const data = await api.searchArchive(term, personId);
 			setMatches(data);
 		} catch {
 			setError('Kunde inte soka i arkivet.');
 		} finally {
 			setIsLoading(false);
 		}
-	}, []);
+	}, [personId]);
 
 	return {
 		matches,

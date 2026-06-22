@@ -62,59 +62,121 @@ body {
   border-radius: 18px;
   border: 1px solid #bfdbfe;
   box-shadow: 0 18px 30px rgba(15, 23, 42, 0.08);
-  min-height: 560px;
+  min-height: 640px;
   min-width: 0;
-  overflow: auto;
+  overflow: hidden;
+  padding: 0.8rem;
+  padding-top: 3.5rem;
 }
 
 .tree-hint {
   position: absolute;
-  top: 0.6rem;
+  top: 0.9rem;
   left: 0.8rem;
   margin: 0;
-  z-index: 3;
+  z-index: 2;
   font-size: 0.8rem;
   color: #0f766e;
-  background: rgba(240, 253, 250, 0.9);
+  background: rgba(240, 253, 250, 0.95);
   border: 1px solid #99f6e4;
   border-radius: 999px;
   padding: 0.2rem 0.65rem;
 }
 
-.tree-node-clickable {
+.family-graph-scroll {
+  width: 100%;
+  min-height: 540px;
+  margin-top: 0.5rem;
+  overflow: auto;
+  border-radius: 12px;
+}
+
+.family-graph-svg {
+  display: block;
+  background: #f8fafc;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+}
+
+.family-line {
+  stroke: #64748b;
+  stroke-width: 2;
+  fill: none;
+}
+
+.family-line-partner {
+  stroke: #475569;
+  stroke-width: 2.5;
+}
+
+.family-line-sibling {
+  stroke: #64748b;
+}
+
+.family-line-vertical {
+  stroke: #64748b;
+}
+
+.person-card-node {
   cursor: pointer;
 }
 
-.tree-node-hit-area {
-  fill: rgba(15, 118, 110, 0.12);
-  stroke: rgba(15, 118, 110, 0.2);
-  stroke-width: 1;
-  transition: fill 180ms ease;
+.person-card-rect {
+  fill: #ffffff;
+  stroke: #cbd5e1;
+  stroke-width: 1.5;
+  transition: transform 150ms ease, stroke 150ms ease;
 }
 
-.tree-node-core {
-  fill: #0f766e;
-  stroke: #ffffff;
-  stroke-width: 2;
-  transition: transform 180ms ease, fill 180ms ease;
+.person-card-node:hover .person-card-rect {
+  stroke: #0f766e;
 }
 
-.tree-node-core.selected {
-  fill: #0e7490;
+.person-card-node:hover {
+  filter: drop-shadow(0 6px 10px rgba(15, 23, 42, 0.12));
 }
 
-.tree-node-clickable:hover .tree-node-hit-area {
-  fill: rgba(15, 118, 110, 0.22);
+.person-card-male {
+  fill: #ecfdf5;
+  stroke: #22c55e;
 }
 
-.tree-node-clickable:hover .tree-node-core {
-  transform: scale(1.1);
+.person-card-female {
+  fill: #fff7ed;
+  stroke: #f97316;
 }
 
-.tree-node-label {
+.person-card-other {
+  fill: #eff6ff;
+  stroke: #3b82f6;
+}
+
+.person-card-selected {
+  stroke: #0f766e;
+  stroke-width: 3;
+}
+
+.person-avatar-bg {
+  fill: rgba(15, 23, 42, 0.12);
+}
+
+.person-avatar-text {
+  fill: #0f172a;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.person-name-label {
   fill: #0f172a;
   font-size: 12px;
   font-weight: 700;
+}
+
+.person-years-label {
+  fill: #334155;
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .person-card {
@@ -144,6 +206,35 @@ body {
   gap: 0.35rem;
   margin-bottom: 1rem;
   color: #334155;
+}
+
+.relatives-section {
+  margin-bottom: 1rem;
+}
+
+.relatives-section h4 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #0f766e;
+  margin: 0 0 0.5rem;
+}
+
+.relatives-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.relatives-list li {
+  padding: 0.45rem 0.65rem;
+  background: #f0fdfc;
+  border-left: 3px solid #0f766e;
+  font-size: 0.9rem;
+  color: #0f172a;
 }
 
 .search-bar {
@@ -240,4 +331,163 @@ body {
   .tree-panel {
     min-height: 460px;
   }
+}
+
+/* Search People Component */
+.search-people-container {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-people-input {
+  width: 100%;
+  padding: 0.7rem 2.5rem 0.7rem 0.9rem;
+  border: 2px solid #cbd5e1;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  transition: all 200ms ease;
+}
+
+.search-people-input:focus {
+  outline: none;
+  border-color: #0f766e;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
+  background: #f0fdfc;
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 0.7rem;
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: #94a3b8;
+  padding: 0.3rem 0.5rem;
+  transition: color 150ms;
+}
+
+.search-clear-btn:hover {
+  color: #0f766e;
+}
+
+.search-dropdown {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.1);
+  z-index: 100;
+  max-height: 400px;
+  overflow-y: auto;
+  animation: reveal 200ms ease-out;
+}
+
+.search-results {
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem;
+}
+
+.search-result-item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0.7rem;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 150ms;
+  font-family: inherit;
+}
+
+.search-result-item:hover {
+  background-color: #f0fdfc;
+}
+
+.person-name {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+
+.person-dates {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-top: 0.2rem;
+}
+
+.search-no-results,
+.search-hint {
+  padding: 1.5rem;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.surnames-list {
+  margin-top: 1rem;
+  text-align: left;
+}
+
+.surnames-list strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #0f766e;
+  font-size: 0.85rem;
+}
+
+.surnames-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.5rem;
+}
+
+.surname-button {
+  background: #f0fdfc;
+  border: 1px solid #99e6df;
+  border-radius: 6px;
+  padding: 0.5rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 150ms;
+  color: #0f766e;
+  font-weight: 500;
+  font-family: inherit;
+}
+
+.surname-button:hover {
+  background: #d4f7f5;
+  border-color: #0f766e;
+}
+
+.more-surnames {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.search-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 99;
 }

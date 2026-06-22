@@ -2,49 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../services/api';
 import { Person } from '../types/person';
 
-export interface FamilyTreeNode {
-	name: string;
-	attributes: {
-		id: string;
-		birth?: string;
-		death?: string;
-	};
-	person: Person;
-	children?: FamilyTreeNode[];
-}
-
 interface UseFamilyTreeResult {
-	treeData: FamilyTreeNode[];
 	people: Person[];
+	rootPersonId: string | null;
 	isLoading: boolean;
 	error: string | null;
 }
-
-const toNode = (person: Person, peopleMap: Map<string, Person>): FamilyTreeNode => {
-	const children = person.children
-		.map((childId) => peopleMap.get(childId))
-		.filter((child): child is Person => Boolean(child))
-		.map((child) => ({
-			name: child.fullName,
-			attributes: {
-				id: child.id,
-				birth: child.birth?.date,
-				death: child.death?.date,
-			},
-			person: child,
-		}));
-
-	return {
-		name: person.fullName,
-		attributes: {
-			id: person.id,
-			birth: person.birth?.date,
-			death: person.death?.date,
-		},
-		person,
-		children,
-	};
-};
 
 export const useFamilyTree = (initialPersonId?: string): UseFamilyTreeResult => {
 	const [people, setPeople] = useState<Person[]>([]);
@@ -81,19 +44,18 @@ export const useFamilyTree = (initialPersonId?: string): UseFamilyTreeResult => 
 		};
 	}, [initialPersonId]);
 
-	const treeData = useMemo<FamilyTreeNode[]>(() => {
+	const rootPersonId = useMemo<string | null>(() => {
 		if (!people.length) {
-			return [];
+			return null;
 		}
 
-		const peopleMap = new Map(people.map((person) => [person.id, person]));
-		const root = people.find((person) => person.id === initialPersonId) ?? people[0];
-		return [toNode(root, peopleMap)];
+		const explicitRoot = initialPersonId ? people.find((person) => person.id === initialPersonId) : null;
+		return explicitRoot?.id ?? people[0].id;
 	}, [people, initialPersonId]);
 
 	return {
-		treeData,
 		people,
+		rootPersonId,
 		isLoading,
 		error,
 	};
